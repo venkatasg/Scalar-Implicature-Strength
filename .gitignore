@@ -2,3 +2,9 @@
 /build.sh
 *.fdb_latexmk
 /papers
+/analysis/PredPatt
+/analysis/corpus_some-master
+/analysis/.Rproj.user
+/analysis/mass_vs_count.nb.html
+/analysis/Screen Shot 2020-07-08 at 2.42.24 PM.png
+/analysis/Screen Shot 2020-07-08 at 2.42.05 PM.png

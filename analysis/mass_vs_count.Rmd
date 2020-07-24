@@ -1,0 +1,373 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+First load the same packages as used in Degen 2015
+
+```{r}
+library(Hmisc)
+library(gridExtra)
+library(ggplot2)
+library(bootstrap)
+library(MuMIn)
+library(lme4)
+library(lmerTest)
+
+theme_set(theme_bw(base_size = 20))
+
+# set your path here
+source("corpus_some-master/rscripts/helpers.R")
+```
+
+Ok now to load the data
+
+```{r}
+somedata = read.table("corpus_some-master/masscount.tsv",sep="\t",header=T,quote="")
+```
+
+```{r}
+normal = aggregate(Rating ~ Item, data=somedata, FUN=mean)
+pm=ggplot(normal,aes(x=Rating)) +
+  geom_histogram() +
+  scale_x_continuous(name="Mean by-item implicature strength rating",breaks=seq(1,7,by=1)) +
+    # set transparency
+    theme(
+        panel.grid.major = element_blank(), 
+        panel.grid.minor = element_blank(),
+        panel.background = element_rect(fill = "transparent",colour = NA),
+        plot.background = element_rect(fill = "transparent",colour = NA)
+        )
+
+pm
+
+
+
+ggsave("../images/dist.png", pm, bg = "transparent")
+
+shapiro.test(normal$Rating)
+```
+
+First let's see if we can plot something for the Lemma/context
+```{r}
+agr = aggregate(Rating ~ Item + Lemma, data=somedata,FUN=mean)
+agrr = aggregate(Rating ~ Lemma, data = agr, FUN=mean)
+agrr$CILow = aggregate(Rating ~ Lemma, data=agr, FUN=ci.low)$Rating
+agrr$CIHigh = aggregate(Rating ~ Lemma, data=agr, FUN=ci.high)$Rating
+agrr$YMin = agrr$Rating - agrr$CILow
+agrr$YMax = agrr$Rating + agrr$CIHigh
+agrr$Freq = as.data.frame(table(agr$Lemma))$Freq
+```
+
+
+```{r}
+agre = aggregate(. ~ Freq, data=agrr, FUN=mean)
+agre$freq = as.character(agre$Freq)
+agre$freq = factor(agre$freq, levels = agre$freq[order(agre$Freq)])
+agre$LemmaFreq = as.data.frame(table(agrr$Freq))$Freq
+
+# Need to fix freq=1's min, max
+agrre = subset(agre, Freq>1 & Freq<6)
+```
+
+Now to condense the agrre table into something more visually appealing
+```{r}
+row1 = (agre[6,]+agre[7,]+agre[8,]+agre[9,])/4
+row1$freq = '6-9'
+row1$LemmaFreq = (agre[6,]+agre[7,]+agre[8,]+agre[9,])$LemmaFreq
+
+row2 = (agre[10,]+agre[11,]+agre[12,]+agre[13,] + agre[14,] + agre[15,])/6
+row2$freq = '10-19'
+row2$LemmaFreq = (agre[10,]+agre[11,]+agre[12,]+agre[13,] + agre[14,] + agre[15,])$LemmaFreq
+
+row3 = (agre[16,]+agre[17,]+agre[18,]+agre[19,]+ agre[20,])/5
+row3$freq = '20-109'
+row3$LemmaFreq = (agre[16,]+agre[17,]+agre[18,]+agre[19,]+ agre[20,])$LemmaFreq
+
+agrre = rbind(agrre, row1)
+agrre = rbind(agrre, row2)
+agrre = rbind(agrre, row3)
+
+```
+
+```{r}
+pm = ggplot(agrre,aes(x=freq,y=Rating)) +
+  geom_bar(stat="identity",color="black",width=.8,show.legend=F) +
+  geom_errorbar(aes(ymin=YMin,ymax=YMax),width=.2) +
+  scale_fill_grey(start=0.7,end=0.35,name="") +  
+  scale_y_continuous("Mean implicature strength") +
+  scale_x_discrete("Lemma Frequency") +
+  geom_text(y=0.5,aes(label=LemmaFreq),size=6,color="white")+
+    # set transparency
+    theme(
+        panel.grid.major = element_blank(), 
+        panel.grid.minor = element_blank(),
+        panel.background = element_rect(fill = "transparent",colour = NA),
+        plot.background = element_rect(fill = "transparent",colour = NA)
+        )
+
+pm
+
+
+
+ggsave("../images/Lemma.png", pm, bg = "transparent")
+```
+
+Perform statistical tests to test the relationship between Lemma Frequency and Implicature strength
+```{r}
+print("SPEARMAN")
+cor.test(as.numeric(agre$Freq),as.numeric(agre$Rating),method=c("spearman"))
+
+print("PEARSON")
+cor.test(as.numeric(agre$Freq),as.numeric(agre$Rating),method=c("pearson"))
+```
+
+```{r}
+smagr = aggregate(StrengthSome ~ Item + Lemma, data=somedata,FUN=mean)
+smagrr = aggregate(StrengthSome ~ Lemma, data = smagr, FUN=mean)
+smagrr$CILow = aggregate(StrengthSome ~ Lemma, data=smagr, FUN=ci.low)$StrengthSome
+smagrr$CIHigh = aggregate(StrengthSome ~ Lemma, data=smagr, FUN=ci.high)$StrengthSome
+smagrr$YMin = smagrr$StrengthSome - smagrr$CILow
+smagrr$YMax = smagrr$StrengthSome + smagrr$CIHigh
+smagrr$Freq = as.data.frame(table(smagr$Lemma))$Freq
+
+smagre = aggregate(. ~ Freq, data=smagrr, FUN=mean)
+smagre$freq = as.character(smagre$Freq)
+smagre$freq = factor(smagre$freq, levels = smagre$freq[order(smagre$Freq)])
+smagre$LemmaFreq = as.data.frame(table(smagrr$Freq))$Freq
+
+print("SPEARMAN")
+cor.test(as.numeric(smagre$Freq),as.numeric(smagre$StrengthSome),method=c("spearman"))
+
+print("PEARSON")
+cor.test(as.numeric(smagre$Freq),as.numeric(smagre$StrengthSome),method=c("pearson"))
+
+normal = aggregate(StrengthSome ~ Item, data=somedata, FUN=mean)
+shapiro.test(normal$StrengthSome)
+```
+
+
+Now to plot the mean ratings for count and mass nouns separately
+
+```{r}
+somedata = subset(somedata, Count!='NF' | Mass!='NF')
+somedata$Count = factor(somedata$Count)
+somedata$Mass = factor(somedata$Mass)
+
+#COUNT correlate of figure 2
+agr = aggregate(Rating ~ Item + Count, data=somedata,FUN=mean)
+agrr = aggregate(Rating ~ Count, data=agr, FUN=mean)
+agrr$CILow = aggregate(Rating ~ Count, data=agr, FUN=ci.low)$Rating
+agrr$CIHigh = aggregate(Rating ~ Count, data=agr, FUN=ci.high)$Rating
+agrr$YMin = agrr$Rating - agrr$CILow
+agrr$YMax = agrr$Rating + agrr$CIHigh
+agrr$Freq = as.data.frame(table(agr$Count))$Freq
+
+pm = ggplot(agrr,aes(x=Count,y=Rating,fill=Count)) +
+  geom_bar(stat="identity",color="black",width=.5,show.legend=F) +
+  geom_errorbar(aes(ymin=YMin,ymax=YMax),width=.2) +
+  scale_x_discrete(name="",breaks=levels(agrr$Count),labels=c("non-count","count")) +
+  scale_fill_grey(start=0.7,end=0.35,name="") +  
+  scale_y_continuous("Mean implicature strength") +
+  geom_text(y=0.5,aes(label=Freq),size=6,color="white")+
+    # set transparency
+    theme(
+        panel.grid.major = element_blank(), 
+        panel.grid.minor = element_blank(),
+        panel.background = element_rect(fill = "transparent",colour = NA),
+        plot.background = element_rect(fill = "transparent",colour = NA)
+        )
+pm
+
+agr = aggregate(Rating ~ Item + Count, data=somedata, FUN=mean)
+pd = ggplot(agr,aes(x=Rating,fill=Count)) +
+  geom_histogram(position="dodge") +
+  scale_fill_grey(start=0.7,end=0.35,breaks=levels(agr$Count),labels=c("non-count","count")) +
+  scale_y_continuous(name="Number of cases") +
+  scale_x_continuous("Mean by-item implicature strength",breaks=seq(1,7,by=1)) +
+    # set transparency
+    theme(
+        panel.grid.major = element_blank(), 
+        panel.grid.minor = element_blank(),
+        panel.background = element_rect(fill = "transparent",colour = NA),
+        plot.background = element_rect(fill = "transparent",colour = NA)
+        )
+
+pd
+ggsave("../images/count.png", grid.arrange(pm,pd,nrow=1),width=15,height=5, bg = "transparent")
+
+grid.arrange(pm,pd,nrow=1)
+
+```
+
+```{r}
+#MASS correlate of figure 2
+agr = aggregate(Rating ~ Item + Mass, data=somedata,FUN=mean)
+agrr = aggregate(Rating ~ Mass, data=agr, FUN=mean)
+agrr$CILow = aggregate(Rating ~ Mass, data=agr, FUN=ci.low)$Rating
+agrr$CIHigh = aggregate(Rating ~ Mass, data=agr, FUN=ci.high)$Rating
+agrr$YMin = agrr$Rating - agrr$CILow
+agrr$YMax = agrr$Rating + agrr$CIHigh
+agrr$Freq = as.data.frame(table(agr$Mass))$Freq
+
+pm = ggplot(agrr,aes(x=Mass,y=Rating,fill=Mass)) +
+  geom_bar(stat="identity",color="black",width=.5,show.legend=F) +
+  geom_errorbar(aes(ymin=YMin,ymax=YMax),width=.2) +
+  scale_x_discrete(name="",breaks=levels(agrr$Mass),labels=c("non-Mass","Mass")) +
+  scale_fill_grey(start=0.7,end=0.35,name="") +  
+  scale_y_continuous("Mean implicature strength") +
+  geom_text(y=0.5,aes(label=Freq),size=6, color="white")+
+    # set transparency
+    theme(
+        panel.grid.major = element_blank(), 
+        panel.grid.minor = element_blank(),
+        panel.background = element_rect(fill = "transparent",colour = NA),
+        plot.background = element_rect(fill = "transparent",colour = NA)
+        )
+pm
+
+agr = aggregate(Rating ~ Item + Mass, data=somedata, FUN=mean)
+pd = ggplot(agr,aes(x=Rating,fill=Mass)) +
+  geom_histogram(position="dodge") +
+  scale_fill_grey(start=0.7,end=0.35,breaks=levels(agr$Mass),labels=c("non-Mass","Mass")) +
+  scale_y_continuous(name="Number of cases") +
+  scale_x_continuous("Mean by-item implicature strength",breaks=seq(1,7,by=1))+
+    # set transparency
+    theme(
+        panel.grid.major = element_blank(), 
+        panel.grid.minor = element_blank(),
+        panel.background = element_rect(fill = "transparent",colour = NA),
+        plot.background = element_rect(fill = "transparent",colour = NA)
+        )
+
+pd
+ggsave("../images/mass.png", grid.arrange(pm,pd,nrow=1),width=15,height=5, bg = "transparent")
+grid.arrange(pm,pd,nrow=1)
+
+```
+
+```{r}
+# Figure 3: Distribution of mean by-item determiner strength ratings overall (left) and conditioned on whether or not the some-NP was overtly Mass (right). Higher ratings indicate weaker determiner uses.
+agr = aggregate(StrengthSome ~ Item, data=somedata, FUN=mean)
+p = ggplot(agr,aes(x=StrengthSome)) +
+  geom_histogram(position="dodge") +
+  geom_density(alpha=.3) +
+  scale_x_continuous(name="Decreasing determiner strength",breaks=c(3,4,5,6,7),labels=c("3\n stronger","4","5","6","7\nweaker"))  
+p
+
+agr = aggregate(StrengthSome ~ Item + Count, data=somedata, FUN=mean)
+pp = ggplot(agr,aes(x=StrengthSome,fill=Count)) +
+  geom_histogram(position="dodge") +
+  scale_fill_grey(start=0.7,end=0.3,breaks=c("no","yes"),labels=c("non-Count","Count")) +
+  scale_x_continuous(name="Decreasing determiner strength",breaks=c(3,4,5,6,7),labels=c("3\n stronger","4","5","6","7\nweaker")) 
+pp
+
+agr = aggregate(StrengthSome ~ Item + Mass, data=somedata, FUN=mean)
+ppp = ggplot(agr,aes(x=StrengthSome,fill=Mass)) +
+  geom_histogram(position="dodge") +
+  scale_fill_grey(start=0.7,end=0.3,breaks=c("no","yes"),labels=c("non-Mass","Mass")) +
+  scale_x_continuous(name="Decreasing determiner strength",breaks=c(3,4,5,6,7),labels=c("3\n stronger","4","5","6","7\nweaker")) +
+    # set transparency
+    theme(
+        panel.grid.major = element_blank(), 
+        panel.grid.minor = element_blank(),
+        panel.background = element_rect(fill = "transparent",colour = NA),
+        plot.background = element_rect(fill = "transparent",colour = NA)
+        )
+
+ppp
+
+grid.arrange(p,pp,ppp,nrow=1)
+```
+
+How well does the model do on the filtered dataset, without the mass and count variables?
+
+```{r}
+somedata$redMention = as.factor(ifelse(somedata$Mention == "new","new","old"))
+somedata$logSentenceLength = log(somedata$SentenceLength)
+centered = cbind(somedata, myCenter(somedata[,c("StrengthSome","logSentenceLength","Subjecthood","Modification","Partitive","redMention")]))
+
+m.random = lmer(Rating ~  (1|workerid), data=centered)
+print("SUMMARY OF M.RANDOM")
+summary(m.random)
+
+m.fixed = lmer(Rating ~ cPartitive*cStrengthSome+credMention*cSubjecthood*cModification + clogSentenceLength + (1|workerid), data=centered)
+print("SUMMARY OF M.FIXED")
+summary(m.fixed)
+
+print("ANOVA OF M.RANDOM AND M.FIXED")
+anova(m.random,m.fixed)
+```
+
+```{r}
+m = lmer(Rating ~ cPartitive*cStrengthSome+credMention*cSubjecthood*cModification + clogSentenceLength + (1|workerid) + (0 + cPartitive|workerid) + (0 + cStrengthSome|workerid) + (0 + credMention|workerid) + (0 + cSubjecthood|workerid) + (0+cModification|workerid) +  (0 + cPartitive:cStrengthSome|workerid) + (1|Item), data=centered)
+msummary = summary(m)
+
+coefs = as.data.frame(msummary$coefficients)
+print("SUMMARY OF COEFFICIENTS OF M")
+summary(coefs)
+
+print("ANOVA OF M.FIXED AND M")
+anova(m.fixed,m)
+```
+
+```{r}
+# create the model summary reported in Table 5, Appendix D
+# createLatexTableLinear(coefs,predictornames=c("Intercept","Partitive","Strength","Linguistic mention","Subjecthood","Modification","Sentence length","Partitive:Strength","Linguistic mention:Subjecthood","Linguistic mention:Modification","Subjecthood:Modification","Linguistic mention:Subjecthood:Modification"))
+
+# BIC comparison
+BIC(m.random)
+BIC(m.fixed)
+BIC(m)
+```
+
+
+```{r}
+# R squared -- marginal: proportion of variance explained by the fixed factors alone: .14. conditional: proportion of variance explained by both the fixed and random factors: .46.
+r.squaredGLMM(m.random)
+r.squaredGLMM(m.fixed)
+r.squaredGLMM(m)
+```
+
+Now to check with mass and count as factors. For now let's take count and mass as two fixed effects that interacts with Mass and Count
+
+```{r}
+somedata$redMention = as.factor(ifelse(somedata$Mention == "new","new","old"))
+somedata$logSentenceLength = log(somedata$SentenceLength)
+centered = cbind(somedata, myCenter(somedata[,c("StrengthSome","logSentenceLength","Subjecthood","Modification","Partitive","redMention","Mass","Count")]))
+
+m.random = lmer(Rating ~  (1|workerid), data=centered)
+summary(m.random)
+
+m.fixed = lmer(Rating ~ cPartitive*cStrengthSome*cMass*cCount+credMention*cSubjecthood*cModification + clogSentenceLength + (1|workerid), data=centered)
+summary(m.fixed)
+
+anova(m.random,m.fixed)
+```
+
+```{r}
+m = lmer(Rating ~ cPartitive*cStrengthSome*cMass*cCount+credMention*cSubjecthood*cModification + clogSentenceLength + (1|workerid) + (0 + cPartitive|workerid) + (0 + cStrengthSome|workerid) + (0 + cMass|workerid) + (0 + cCount|workerid) + (0 + credMention|workerid) + (0 + cSubjecthood|workerid) +  (0 + cPartitive:cStrengthSome|workerid) + (0+cModification|workerid) + (1|Item), data=centered)
+msummary = summary(m)
+
+coefs = as.data.frame(msummary$coefficients)
+summary(coefs)
+
+anova(m.fixed,m)
+```
+
+```{r}
+# create the model summary reported in Table 5, Appendix D
+createLatexTableLinear(coefs,predictornames=c("Intercept","Partitive","Strength","Mass","Count","Linguistic mention","Subjecthood","Modification","Sentence length","Partitive:Strength","Partitive:Mass","Strength:Mass","Partitive:Count","Strength:Count","Mass:Count", "Linguistic mention:Subjecthood","Linguistic mention:Modification","Subjecthood:Modification","Partitive:Strength:Mass","Partitive:Strength:Count","Partitive:Mass:Count","Strength:Mass:Count", "Linguistic mention:Subjecthood:Modification","Partitive:Strength:Mass:Count"))
+
+BIC(m.random)
+BIC(m.fixed)
+BIC(m)
+```
+
+```{r}
+# R squared -- marginal: proportion of variance explained by the fixed factors alone: .14. conditional: proportion of variance explained by both the fixed and random factors: .46.
+r.squaredGLMM(m.random)
+r.squaredGLMM(m.fixed)
+r.squaredGLMM(m)
+```
+
