@@ -1,28 +1,22 @@
-\documentclass[10pt, biblatex]{report}
-\usepackage{linguex}
-\usepackage{booktabs}
+\documentclass[10pt, biblatex, linguex]{report}
 \addbibresource{references.bib}
 
-\makeatletter
-\newcommand\notsotiny{\@setfontsize\notsotiny\@vipt\@viipt}
-\makeatother
-
-% The \pdf* commands provide metadata for the PDF output.
-% Do not use LaTeX style / commands like \emph{} inside these.
 \pdfauthor{Venkat}
 \pdftitle{Analyzing Scalar Implicatures}
+%\pdfkeywords{}
 
 \title[phl\oldstylenums{394}k term paper]{How do context and countability modulate\\
                                     scalar implicature strength?}
-\author[venkat]{
-                \spauthor{venkata s govindarajan}
-                }
-\date{\today}
 
+\author[venkat]{
+                \spauthor{
+                    Venkata S Govindarajan \\
+                    \institute{University of Texas at Austin} \\
+                    \course{phl\oldstylenums{394}k term paper}
+                    }
+                }
 
 \begin{document}
-
-\nocite{*}
 
 \maketitle
 
@@ -44,6 +38,7 @@
 %scalar implicature, game-theoretic semantics, mass-count nouns
 %\end{keywords}
 
+%\blfootnote{$^\dagger${\ttfamily venkatasg@utexas.edu}}
 
 \section{introduction}
 \label{sec:introduction}
@@ -581,8 +576,20 @@ suggests that future work needs to look into better
 methods of calculating and incorporating countability profiles into a
 probabilistic model of scalar implicatures.
 
+\begin{addresses}
+  \begin{address}
+    Venkata S Govindarajan \\
+    Department of Linguistics \\
+    University of Texas at Austin \\
+    \email{venkatasg@utexas.edu}
+  \end{address}
+\end{addresses}
+
 
 \newpage
+
+% References
+\pagestyle{empty}
 \printbibliography[title={references}]
 
 \end{document}
