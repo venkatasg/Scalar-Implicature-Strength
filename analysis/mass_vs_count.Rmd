@@ -1,5 +1,5 @@
 ---
-title: "R Notebook"
+title: "Effect of context and countability on Scalar Implicature Strength"
 output: html_notebook
 ---
 

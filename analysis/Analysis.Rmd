@@ -1,0 +1,33 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+```{r}
+library(Hmisc)
+library(gridExtra)
+library(ggplot2)
+library(bootstrap)
+library(MuMIn)
+library(lme4)
+library(lmerTest)
+
+theme_set(theme_gray(base_size = 10))
+
+
+```
+
+```{r}
+setwd('~/Research/info-theoretic gpt-2/')
+lenfreq = read.table("R_lenfreq.csv",sep=",",header=T)
+leninfo = read.table("R_leninfo.csv",sep=",",header=T)
+```
+
+```{r}
+pm = ggplot(lenfreq, aes(x=binmean,y=len)) +
+     geom_errorbar(aes(ymin=len-sd, ymax=len+sd), width=.1) +
+     geom_line()+
+     geom_point()
+pm
+```
+
